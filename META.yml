@@ -1,8 +1,8 @@
 --- #YAML:1.0
 name:                POE-Component-PluginManager
-version:             0.6
+version:             0.61
 abstract:            Make your POE programs plugin capable, really easy!
-license:             ~
+license:             perl
 author:              
     - whoppix <elektronenvolt@quantentunnel.de>
 generated_by:        ExtUtils::MakeMaker version 6.42

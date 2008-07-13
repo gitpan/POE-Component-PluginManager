@@ -5,6 +5,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME              => 'POE::Component::PluginManager',
     VERSION_FROM      => 'lib/POE/Component/PluginManager.pm', # finds $VERSION
+    LICENSE           => 'perl',
     PREREQ_PM         => {
     POE => 1.0000,
     Class::Unload => 0.03,

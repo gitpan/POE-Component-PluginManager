@@ -28,7 +28,7 @@ sub error {
 }
 
 package POE::Component::PluginManager;
-our $VERSION = "0.6";
+our $VERSION = "0.61";
 
 use strict;
 use warnings;
@@ -405,6 +405,10 @@ POE::Component::PluginManager - Make your POE programs plugin capable, really ea
 
 POE::Component::PluginManager makes it really easy to enhance virtually
 any POE application with powerfull, yet easy-to-create plugins.
+POE::Component::PluginManager tries to make writing plugins simple (anyone who
+has a good understanding about POE should be able to write plugins without further
+complications), leaving the details of the plugin specifications to the designer
+of the Application.
 
 =head1 HOW PLUGINS WORK
 
@@ -446,6 +450,7 @@ In this example, we have an IRC bot, which has 100 plugins, providing 5 commands
 irc_public signal, waiting for their command to occur:
 
 inside some_plugin:
+
     if ( $what =~ /^!foo$/ ) {
         $_[KERNEL]->post( 'irc' => 'privmsg' => $channel => "answer to !foo" );
     }
@@ -456,6 +461,7 @@ inside some_plugin:
         $_[KERNEL]->post( 'net' => 'privmsg' => $channel => "answer to !baz" );
     }
     ...
+
 Here, for every public message, every plugin has to apply 5 regexpes on the message, to determine if the command is the
 one we are waiting for. Considering, we have 100 plugins loaded, this might cause a significant delay.
 Here a much better version, that follows the "do as little as possible"-rule:
@@ -481,90 +487,90 @@ or any subset of it, if you want to.
 Enough of the blah blah blah, here a listing of all methods you can sent or receive from the pluginmanagers session:
 
 =head2 SIGNALS YOU CAN SEND
+    
+    load CLASSNAME(string), PLUGINDATA
+        Loads the class CLASSNAME, and passes PLUGINDATA to the new() method.
+    
+    unload CLASSNAME(string), MODE(string), REASON(string)
+        sends a shutdown signal to the plugin, unloads the class.
+        MODE can be: "immediate", "smart" or "lazy", depending
+        on how fast you want to get rid of the plugin. See the
+        plugin API section for details.
+        REASON can be any string you like, if at all.
+        
+    shutdown MODE(string)
+        Sends a shutdown signal to all plugins, and waits for all
+        plugins to unload. When finished, the pluginmanager is shut
+        down. MODE can be "immediate", "smart" or "lazy".
+        
+    show_plugin_table
+        Will send back a plugin_table event with a listing of all
+        currently loaded plugins.
+        
+    register [SESSION]
+        Registers SESSION to the pluginmanager to receive events.
+        if SESSION is not specified, assumes the sending session
+        as target. register will increase the refcount for your
+        receiving session, so that your session will not go away
+        until it unregisters.
+    
+    unregister [SESSION]
+        Unregisters SESSION. If SESSION is not specified, assumes
+        the sending session as target. Unregister will decrease the
+        refcount of your session.
+        
+    _dump
+        uses Data::Dumper to print plugin and reverse lookup table
+        to STDOUT.
 
-load CLASSNAME(string), PLUGINDATA
-    Loads the class CLASSNAME, and passes PLUGINDATA to the new() method.
-
-unload CLASSNAME(string), MODE(string), REASON(string)
-    sends a shutdown signal to the plugin, unloads the class.
-    MODE can be: "immediate", "smart" or "lazy", depending
-    on how fast you want to get rid of the plugin. See the
-    plugin API section for details.
-    REASON can be any string you like, if at all.
-    
-shutdown MODE(string)
-    Sends a shutdown signal to all plugins, and waits for all
-    plugins to unload. When finished, the pluginmanager is shut
-    down. MODE can be "immediate", "smart" or "lazy".
-    
-show_plugin_table
-    Will send back a plugin_table event with a listing of all
-    currently loaded plugins.
-    
-register [SESSION]
-    Registers SESSION to the pluginmanager to receive events.
-    if SESSION is not specified, assumes the sending session
-    as target. register will increase the refcount for your
-    receiving session, so that your session will not go away
-    until it unregisters.
-
-unregister [SESSION]
-    Unregisters SESSION. If SESSION is not specified, assumes
-    the sending session as target. Unregister will decrease the
-    refcount of your session.
-    
-_dump
-    uses Data::Dumper to print plugin and reverse lookup table
-    to STDOUT.
-    
 =head2 SIGNALS YOU CAN RECEIVE
-    
-plugin_compile_failed PLUGIN_NAME(str) ERROR(str)
-    Compilling of a plugin failed. ERROR will contain the error
-    string. ($@)
-    
-plugin_init_failed PLUGIN_NAME(str) ERROR(str)
-    Initialisizing a plugin (calling new()) failed. ERROR will
-    contain the error string. ($@)
 
-plugin_invalid_values PLUGIN_NAME(str)
-    A plugin did not return the correct set of values in _start.
-    The Plugin API section in this documentation describes how to
-    correctly set those values.
+    plugin_compile_failed PLUGIN_NAME(str) ERROR(str)
+        Compilling of a plugin failed. ERROR will contain the error
+        string. ($@)
+        
+    plugin_init_failed PLUGIN_NAME(str) ERROR(str)
+        Initialisizing a plugin (calling new()) failed. ERROR will
+        contain the error string. ($@)
+    
+    plugin_invalid_values PLUGIN_NAME(str)
+        A plugin did not return the correct set of values in _start.
+        The Plugin API section in this documentation describes how to
+        correctly set those values.
+    
+        
+    plugin_started PLUGIN_NAME(str)
+        A plugin was successfully loaded and started.
+        
+    plugin_error PLUGIN_NAME(str) ERROR_HASHREF(hashref)
+        A plugin encountered an error. ERROR_HASHREF will be the exception
+        hash provided by POE (see POE::Kernels exception handling for
+        details)
+        
+    plugin_warning PLUGIN_NAME(str) WARN_STRING(str)
+        A plugin emitted a warning. WARN_STRING will be the warning.
+        
+    plugin_unloaded PLUGIN_NAME(str) QUIT_MESSAGE(string)
+        A plugin unloaded. QUIT_MESSAGE will contain a string that holds the
+        quit message of the plugin (might for example be "quit on user request"
+        or "quit due to fatal exception")
+        
+    plugin_waiting PLUGIN_COUNT(int)
+        You will receive this signal, when you instructed the pluginmanager to
+        shut down, but there are plugins pending that have to be shut down before
+        the plugin manager can shut down. plugin_waiting will be emitted every time
+        the number of pending plugins changes, until its 0.
+    
+    plugin_table PLUGIN_LIST(hashref)
+        You will receive this when you requested a plugin list with show_plugin_table.
+        This table will hold a list of all loaded plugins, and their meta-information
+        as for example license, author, description and so on. Youll best have a look
+        at the structure with Data::Dumper.
+    
+    plugin_manager_shutdown
+        You will receive this when the plugin manager shuts down.
+        The pluginmanager will not shut down until all plugins are unloaded.
 
-    
-plugin_started PLUGIN_NAME(str)
-    A plugin was successfully loaded and started.
-    
-plugin_error PLUGIN_NAME(str) ERROR_HASHREF(hashref)
-    A plugin encountered an error. ERROR_HASHREF will be the exception
-    hash provided by POE (see POE::Kernels exception handling for
-    details)
-    
-plugin_warning PLUGIN_NAME(str) WARN_STRING(str)
-    A plugin emitted a warning. WARN_STRING will be the warning.
-    
-plugin_unloaded PLUGIN_NAME(str) QUIT_MESSAGE(string)
-    A plugin unloaded. QUIT_MESSAGE will contain a string that holds the
-    quit message of the plugin (might for example be "quit on user request"
-    or "quit due to fatal exception")
-    
-plugin_waiting PLUGIN_COUNT(int)
-    You will receive this signal, when you instructed the pluginmanager to
-    shut down, but there are plugins pending that have to be shut down before
-    the plugin manager can shut down. plugin_waiting will be emitted every time
-    the number of pending plugins changes, until its 0.
-
-plugin_table PLUGIN_LIST(hashref)
-    You will receive this when you requested a plugin list with show_plugin_table.
-    This table will hold a list of all loaded plugins, and their meta-information
-    as for example license, author, description and so on. Youll best have a look
-    at the structure with Data::Dumper.
-
-plugin_manager_shutdown
-    You will receive this when the plugin manager shuts down.
-    The pluginmanager will not shut down until all plugins are unloaded.
-    
 =head1 PLUGIN API
 
 Here an example of what a plugin typically should look like.
@@ -596,108 +602,108 @@ like in _start, or whereever you want (inside your "toplevel"-session.)
     # the pluginmanager object. used to report errors.
     my $shutdown_reason;
     # the reason to shut down, for simplicty stored in a global.
-
-sub new {
-    my $type = shift;
-    $pluginmanager = shift;
-    my $init_data = shift; # data that can be given as parameter when loading the plugin
-    POE::Session->create(
-        'inline_states' => {
-            '_start'   => \&start,
-            '_stop'    => \&stop,
-            'sig_DIE'  => \&handle_die,
-            'shutdown' => \&plugin_shutdown,
-        },
-    ) or die '[$name] Failed to spawn a new session.';
-
-    # in this example we are spawning a new session straightforward.
-    # theres no problem for a plugin to have multiple sessions running,
-    # but the first session to start is treated by the pluginmanager as
-    # the 'plugin'-session, so the best way is propably to spawn an
-    # initial 'manager' session, and spawn more sessions from there.
-}
-
-sub start {
-    $_[KERNEL]->sig( DIE => 'sig_DIE' );
-
-    # this is an important thing to do. Plugins can terminate the entire
-    # application, if they want to, but you should do this, to make sure
-    # you don't crash the application by accident. For more information
-    # on how this works, see POE::Kernel, section "exception handling"
-    $_[KERNEL]->alias_set($name);
-
-    # setting an alias to keep the session alive
-    return [ $name, $longname, $license, $VERSION, $author ];
-
-    # this has to be returned in this order! The plugin manager catches
-    # the '_child' signal, and puts those values you specify here into
-    # the plugin table. If you fail to provide all of those values, the
-    # pluginmanager will send a warning about missing initial parameters.
-}
-
-sub stop {
-    print "[$name] is unloaded.\n";
-    return $shutdown_reason;
-
-    # if you care about letting the pluginmanger know why you shut down,
-    # this is the place to return it.
-}
-
-sub handle_die {
-
-    # called when you die.
-    print "[$name] plugin died\n";
-    my ( $sig, $ex ) = @_[ ARG0, ARG1 ];
-
-    # $sig is the signal (DIE), $ex is the exception hash (see POE::Kernel,
-    # 'exception handling)
-    $pluginmanager->error($ex);
-
-    # if you want to let the pluginmanager know that an error ocurred.
-    $_[KERNEL]->yield( 'shutdown', 'immediate', 'exception ocurred: plugin has to terminate.' );
-
-    # if the error is so grave, that your plugin can't continue operating norm-
-    # ally, shut yourself down, with an exception error.
-    $_[KERNEL]->sig_handled();
-
-    # if you don't do this, the application will terminate.
-}
-
-sub plugin_shutdown {
-    my $timing = $_[ARG0];
-
-    # timing can be "immediate", "smart" or "lazy".
-    # this is just a convention, here an explanation how to handle timings:
-    # immediate:
-    #   shut down immediately, as fast as possible.
-    # smart:
-    #   its up to you to decide what work you think is needed to be done before
-    #   shutting down. Do everything needed, but don't do too much.
-    # lazy:
-    #   lazy means you have plenty of time to shut down. This means you are
-    #   allowed spending time on f.ex. saving your time to a database, making
-    #   an integrity check, and make a general cleanup.
-    # The pluginmanager will wait while all plugins shut down, and keep the app
-    # up to date about how many plugins are pending, before the pluginmanager
-    # can shutdown.
-    # If the application didn't specify any shutdown timing, the default will
-    # be "smart".
-
-    my $message = $_[ARG1];
-
-    # shutdown message, some string, most likely not interesting.
-    # can be used as shutdown reason when session stops. Not guaranteed
-    # to be meaningfull / defined.
-    print "[$name] received shutdown signal: $timing because of: $message\n";
-    $shutdown_reason = $message;
-    $_[KERNEL]->alias_remove($name);
-
-    # here you need to do everything needed to make your POE::Session stop.
-    # here were just removing an alias, cleanly stopping the session could also
-    # include f.ex. stopping spawned child-sessions, unregistering to other
-    # sessions you registered too, and decreasing refcounts.
-}
-return 1;
+    
+    sub new {
+        my $type = shift;
+        $pluginmanager = shift;
+        my $init_data = shift; # data that can be given as parameter when loading the plugin
+        POE::Session->create(
+            'inline_states' => {
+                '_start'   => \&start,
+                '_stop'    => \&stop,
+                'sig_DIE'  => \&handle_die,
+                'shutdown' => \&plugin_shutdown,
+            },
+        ) or die '[$name] Failed to spawn a new session.';
+    
+        # in this example we are spawning a new session straightforward.
+        # theres no problem for a plugin to have multiple sessions running,
+        # but the first session to start is treated by the pluginmanager as
+        # the 'plugin'-session, so the best way is propably to spawn an
+        # initial 'manager' session, and spawn more sessions from there.
+    }
+    
+    sub start {
+        $_[KERNEL]->sig( DIE => 'sig_DIE' );
+    
+        # this is an important thing to do. Plugins can terminate the entire
+        # application, if they want to, but you should do this, to make sure
+        # you don't crash the application by accident. For more information
+        # on how this works, see POE::Kernel, section "exception handling"
+        $_[KERNEL]->alias_set($name);
+    
+        # setting an alias to keep the session alive
+        return [ $name, $longname, $license, $VERSION, $author ];
+    
+        # this has to be returned in this order! The plugin manager catches
+        # the '_child' signal, and puts those values you specify here into
+        # the plugin table. If you fail to provide all of those values, the
+        # pluginmanager will send a warning about missing initial parameters.
+    }
+    
+    sub stop {
+        print "[$name] is unloaded.\n";
+        return $shutdown_reason;
+    
+        # if you care about letting the pluginmanger know why you shut down,
+        # this is the place to return it.
+    }
+    
+    sub handle_die {
+    
+        # called when you die.
+        print "[$name] plugin died\n";
+        my ( $sig, $ex ) = @_[ ARG0, ARG1 ];
+    
+        # $sig is the signal (DIE), $ex is the exception hash (see POE::Kernel,
+        # 'exception handling)
+        $pluginmanager->error($ex);
+    
+        # if you want to let the pluginmanager know that an error ocurred.
+        $_[KERNEL]->yield( 'shutdown', 'immediate', 'exception ocurred: plugin has to terminate.' );
+    
+        # if the error is so grave, that your plugin can't continue operating norm-
+        # ally, shut yourself down, with an exception error.
+        $_[KERNEL]->sig_handled();
+    
+        # if you don't do this, the application will terminate.
+    }
+    
+    sub plugin_shutdown {
+        my $timing = $_[ARG0];
+    
+        # timing can be "immediate", "smart" or "lazy".
+        # this is just a convention, here an explanation how to handle timings:
+        # immediate:
+        #   shut down immediately, as fast as possible.
+        # smart:
+        #   its up to you to decide what work you think is needed to be done before
+        #   shutting down. Do everything needed, but don't do too much.
+        # lazy:
+        #   lazy means you have plenty of time to shut down. This means you are
+        #   allowed spending time on f.ex. saving your time to a database, making
+        #   an integrity check, and make a general cleanup.
+        # The pluginmanager will wait while all plugins shut down, and keep the app
+        # up to date about how many plugins are pending, before the pluginmanager
+        # can shutdown.
+        # If the application didn't specify any shutdown timing, the default will
+        # be "smart".
+    
+        my $message = $_[ARG1];
+    
+        # shutdown message, some string, most likely not interesting.
+        # can be used as shutdown reason when session stops. Not guaranteed
+        # to be meaningfull / defined.
+        print "[$name] received shutdown signal: $timing because of: $message\n";
+        $shutdown_reason = $message;
+        $_[KERNEL]->alias_remove($name);
+    
+        # here you need to do everything needed to make your POE::Session stop.
+        # here were just removing an alias, cleanly stopping the session could also
+        # include f.ex. stopping spawned child-sessions, unregistering to other
+        # sessions you registered too, and decreasing refcounts.
+    }
+    return 1;
 
 =head1 SEE ALSO
 

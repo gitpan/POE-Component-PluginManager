@@ -10,10 +10,12 @@ our $author   = 'whoppix <elektronenvolt@quantentunnel.de>, paul <paul@computer-
 
 my $pluginmanager;
 my $shutdown_reason;
+my $irc; # the PoCo::IRC object, that the application gave us as plugin_data
 
 sub new {
     my $type = shift;
     $pluginmanager = shift;
+    $irc = shift;
     POE::Session->create(
         'inline_states' => {
             '_start'     => \&start,
@@ -28,7 +30,7 @@ sub new {
 sub start {
     $_[KERNEL]->sig( DIE => 'sig_DIE' );
     $_[KERNEL]->alias_set($name);
-    $_[KERNEL]->post( 'net' => register => 'public' );
+    $irc->yield( register => 'public' );
     return [ $name, $longname, $license, $VERSION, $author ];
 }
 
@@ -50,7 +52,7 @@ sub plugin_shutdown {
     my $message = $_[ARG1];
     print "[$name] received shutdown signal: $timing because of: $message\n";
     $shutdown_reason = $message;
-    $_[KERNEL]->post( 'net' => unregister => 'public' );
+    $irc->yield( unregister => 'public' );
     $_[KERNEL]->alias_remove($name);
 }
 
@@ -63,14 +65,14 @@ sub irc_public {
         if ( my (@in) = $what =~ /^!bmi\W+(.+),\W*(.+)/ ) {
             my $in = eval { $in[0] / ( ( $in[1] / 100 ) * ( $in[1] / 100 ) ) };
             if ($@) {
-                $_[KERNEL]->post( 'net' => 'privmsg' => $channel => "Invalid Parameters! Usage: !bmi \x02wheight\x0F, \x02Size in cm\x0F" );
+                $irc->yield( 'privmsg' => $channel => "Invalid Parameters! Usage: !bmi \x02wheight\x0F, \x02Size in cm\x0F" );
             }
             else {
-                $_[KERNEL]->post( 'net' => 'privmsg' => $channel => sprintf( "%s has a BMI of \x02%.2f\x0F", $nick, $in ) );
+                $irc->yield( 'privmsg' => $channel => sprintf( "%s has a BMI of \x02%.2f\x0F", $nick, $in ) );
             }
         }
         else {
-            $_[KERNEL]->post( 'net' => 'privmsg' => $channel => "Usage: !bmi \x02wheight\x0F, \x02Size in cm\x0F" );
+            $irc->yield( 'privmsg' => $channel => "Usage: !bmi \x02wheight\x0F, \x02Size in cm\x0F" );
         }
     }
 }

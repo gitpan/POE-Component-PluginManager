@@ -12,10 +12,11 @@ our $author   = 'whoppix <elektronenvolt@quantentunnel.de>';
 my $pluginmanager;
 my $shutdown_reason;
 my $spam_channel = "#orakel"; # in this channel we will answer on every message.
-
+my $irc; # the PoCo::IRC object, that the application gave us as plugin_data
 sub new {
     my $type = shift;
     $pluginmanager = shift;
+    $irc = shift;
     POE::Session->create(
         'inline_states' => {
             '_start'     => \&start,
@@ -31,7 +32,7 @@ sub new {
 sub start {
     $_[KERNEL]->sig( DIE => 'sig_DIE' );
     $_[KERNEL]->alias_set($name);
-    $_[KERNEL]->post( 'net' => register => 'public' );
+    $irc->yield( register => 'public' );
     my $poco = POE::Component::AI::MegaHAL->spawn(
         autosave => 1,
         debug    => 0,
@@ -62,7 +63,7 @@ sub plugin_shutdown {
     $shutdown_reason = $message;
     $_[KERNEL]->alias_remove($name);
     $_[KERNEL]->post( 'megaHAL' => 'shutdown' );
-    $_[KERNEL]->post( 'net' => unregister => 'public' );
+    $irc->yield( unregister => 'public' );
 }
 
 sub irc_public {
@@ -98,7 +99,7 @@ sub got_reply {
     my $answer  = $reply->{reply};
     my $who     = $reply->{nick};
     my $channel = $reply->{channel};
-    $_[KERNEL]->post( 'net' => 'privmsg' => $channel => $who . ": " . $answer );
+    $irc->yield( 'privmsg' => $channel => $who . ": " . $answer );
 
 }
 return 1;
