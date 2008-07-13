@@ -1,0 +1,20 @@
+Revision history for Perl extension POE::Component::PluginManager.
+
+0.1  Sun Jul 13 16:54:56 2008
+	- original version
+
+0.2  Sun Jul 13 16:54:56 2008
+	- added plugin unloading capabilities
+        
+0.3  Sun Jul 13 16:54:56 2008
+	- bugfixes, added capability to display plugin list
+
+0.4  Sun Jul 13 16:54:56 2008
+	- bugfixes, changed API a bit around, added refcount
+    incrementing for registered sessions
+
+0.5  Sun Jul 13 16:54:56 2008
+	- bugfixes, added a few more signals
+        
+0.6  Sun Jul 13 16:54:56 2008
+	- bugfixes, added documentation and examples
