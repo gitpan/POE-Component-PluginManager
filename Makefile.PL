@@ -7,7 +7,7 @@ WriteMakefile(
     VERSION_FROM      => 'lib/POE/Component/PluginManager.pm', # finds $VERSION
     LICENSE           => 'perl',
     PREREQ_PM         => {
-    POE => 1.0000,
+    POE => 0.9999,
     Class::Unload => 0.03,
     }, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005

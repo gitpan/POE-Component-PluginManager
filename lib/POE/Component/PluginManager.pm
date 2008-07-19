@@ -28,7 +28,7 @@ sub error {
 }
 
 package POE::Component::PluginManager;
-our $VERSION = "0.61";
+our $VERSION = "0.62";
 
 use strict;
 use warnings;

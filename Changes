@@ -1,4 +1,7 @@
 Revision history for Perl extension POE::Component::PluginManager.
+
+0.62 Sat Jul 19 18:30:46 CEST 2008
+	- tested with POE 0.9999, changed Makefile.PL.
         
 0.61  Sun Jul 13 16:54:56 2008
 	- cleaned up POD, added better examples.
