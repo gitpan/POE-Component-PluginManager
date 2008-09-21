@@ -28,7 +28,7 @@ sub error {
 }
 
 package POE::Component::PluginManager;
-our $VERSION = "0.62";
+our $VERSION = "0.65";
 
 use strict;
 use warnings;
@@ -93,11 +93,13 @@ sub new {
             'show_plugin_table' => \&show_plugin_table,     # sends a hash
             'register'          => \&register,              # registers your session
             'unregister'        => \&unregister,            # unregisters your session
+            'unregister_all'    => \&unregister_all,        # unregisters all sessions.
 
             'add_plugin'     => \&add_plugin,               # internally used
             'remove_plugin'  => \&remove_plugin,            # internally used
             'plugin_error'   => \&plugin_error,             # internally used
             'plugin_warning' => \&plugin_warning,           # internally used
+            'relayed_warning'=> \&relayed_warning,          # to delay warnings.
         },
     ) or die 'Unable to create a new session!';
 
@@ -118,11 +120,6 @@ sub child {
 
         # a plugin session has stopped
         POE::Kernel->yield( 'remove_plugin', $plugin_id, $return );
-    }
-    else {
-        warn "[$alias] child received unknown signal (neither create or lose) - ignoring.\n";
-        warn "[$alias] please report this to the author of this module. Additional Information:\n";
-        warn Dumper @_;
     }
 }
 
@@ -203,6 +200,7 @@ sub remove_plugin {
             # shut down component here: remove alias
             POE::Kernel->alias_remove($alias);
             POE::Kernel->yield( '_generate_event', 'plugin_manager_shutdown', $plugin_count );
+            POE::Kernel->yield("unregister_all");
         }
         else {
             debug "[$alias] waiting for plugins to shut down. Remaining: $plugin_count\n";
@@ -233,6 +231,10 @@ sub load_plugin {
     my $spacer = " " x $spaces;
     my ( $name, $longname, $license, $version );    #name, longname, license, version (all strings)
     debug "[$alias] loading $classname...$spacer compile: ";
+    # this makes the load_plugin signal re-entrant. Thanks to Tim Esselens for the patch.
+    if ($INC{$filename}) { delete $INC{$filename};
+                          debug "[$alias] class was still in \@INC, removing...\n";
+                          };
     eval { require $filename; };
     if ($@) {
         debug "FAIL\n";
@@ -292,10 +294,22 @@ sub plugin_error {
 sub plugin_warning {
     my $id   = $_[SENDER]->ID();
     my $name = $_[HEAP]->{lookup}->{$id};
-    $name = $id unless $name;
+    if(!$name){ # were delaying a bit
+        print "unresolved warning!\n";
+        $_[KERNEL]->yield('relayed_warning', $id, $_[ARG0]);
+        return 1;
+    }
 
     # see above, the same goes for warnings.
     my $string = $_[ARG0];
+    POE::Kernel->yield( '_generate_event', 'plugin_warning', $name, $string );
+}
+
+sub relayed_warning {  # a little helper function, that delays warnings until the _child
+    my $id = $_[ARG0]; # event had time to be dispatched
+    my $string = $_[ARG1];
+    my $name = $_[HEAP]->{lookup}->{$id};
+    $name = 'unresolved' unless $name;
     POE::Kernel->yield( '_generate_event', 'plugin_warning', $name, $string );
 }
 
@@ -326,8 +340,10 @@ sub component_shutdown {
         # no plugins pending, shut down immediately
         POE::Kernel->alias_remove($alias);
         POE::Kernel->yield( '_generate_event', 'plugin_manager_shutdown', 0 );
+        #POE::Kernel->delay("unregister_all", 1);
+        POE::Kernel->yield("unregister_all");
     }
-
+    #$_[KERNEL]->delay("unregister_all", 1);
 }
 
 sub show_plugin_table {
@@ -367,6 +383,12 @@ sub unregister {
     POE::Kernel->refcount_decrement($session);
 
     # now you can go away.
+}
+sub unregister_all {
+        foreach(keys %{$_[HEAP]->{RecvSessions}}){
+        $_[KERNEL]->refcount_decrement($_);
+    }
+    delete $_[HEAP]->{RecvSessions};
 }
 
 sub _generate_event {
