@@ -1,7 +1,13 @@
 Revision history for Perl extension POE::Component::PluginManager.
+
+0.66 Sun Sep 21 23:20:52 CEST 2008
+	- made show_plugin_list return the plugin list, so that it can be
+	used synchronously.
+
 0.65 Sun Sep 21 22:56:59 CEST 2008
 	- made the load_plugin signal re-entrant
 	(see bug 39491: http://rt.cpan.org/Public/Bug/Display.html?id=39491)
+
 0.64 Sun Sep 21 22:56:17 CEST 2008
 	- automatic unregistering of all sessions when component is shut down
 	(fixes "dangling" idle-sessions)

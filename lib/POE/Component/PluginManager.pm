@@ -28,7 +28,7 @@ sub error {
 }
 
 package POE::Component::PluginManager;
-our $VERSION = "0.65";
+our $VERSION = "0.66";
 
 use strict;
 use warnings;
@@ -359,6 +359,7 @@ sub show_plugin_table {
         $plugins->{$plugin}->{author}   = $_[HEAP]->{plugins}->{$plugin}->{author};
     }
     POE::Kernel->yield( '_generate_event', 'plugin_table', $plugins );
+    return $plugins;
 }
 
 sub register {
