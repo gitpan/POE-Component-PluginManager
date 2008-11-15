@@ -28,7 +28,7 @@ sub error {
 }
 
 package POE::Component::PluginManager;
-our $VERSION = "0.66";
+our $VERSION = "0.67";
 
 use strict;
 use warnings;
@@ -240,6 +240,7 @@ sub load_plugin {
         debug "FAIL\n";
         debug "[$alias] Error: $@\n";
         POE::Kernel->yield( '_generate_event', 'plugin_compile_failed', $classname, $@ );
+        Class::Unload->unload($classname); # fixes the "attempt to reload $plugin" warnings
     }
     else {
         debug "OK ";

@@ -1,5 +1,8 @@
 Revision history for Perl extension POE::Component::PluginManager.
 
+0.67 Sa 15. Nov 14:04:11 UTC 2008
+	- fixed bug "attempt to reload $class"
+
 0.66 Sun Sep 21 23:20:52 CEST 2008
 	- made show_plugin_list return the plugin list, so that it can be
 	used synchronously.
